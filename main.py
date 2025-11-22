@@ -1,6 +1,7 @@
 """
 主程序模块，负责整合所有功能，启动网络嗅探，并根据JA3/JA3S指纹进行会话跟踪和威胁检测。
 """
+import threading
 import time
 from typing import Dict, Tuple
 
@@ -9,12 +10,26 @@ from logger import LogManager
 from tls_parser import extract_ja3, extract_ja3s
 from utils import TrafficState, SessionInfo, get_five_tuple
 
+def heartbeat():
+    """
+    心跳线程，每10秒打印一次运行状态和计数。
+    """
+    count = 0
+    while True:
+        time.sleep(10)
+        count += 1
+        print(f"[Heartbeat] Program is running... (Count: {count})")
+
 
 def main():
     """
     主函数，程序的入口点。
     负责初始化日志管理器、会话表、白名单和黑名单，并启动网络嗅探。
     """
+    # 启动心跳线程
+    hb_thread = threading.Thread(target=heartbeat, daemon=True)
+    hb_thread.start()
+
     # 初始化日志管理器并启动后台日志记录线程
     log_mgr = LogManager()
     log_mgr.start()
@@ -58,6 +73,7 @@ def main():
             rev = (dst_ip, dst_port, src_ip, src_port, proto)
             info = session_table.get(rev)
 
+
             # 如果找到了对应的可疑会话，并且JA3S指纹在黑名单中，则判定为恶意通信
             if info and info.state == TrafficState.SUSPICIOUS:
                 if ja3s_hash in blacklist_ja3s:
@@ -81,10 +97,7 @@ def main():
 
     # 延迟导入scapy的sniff函数，避免启动时加载过慢
     from scapy.all import sniff
-    
-    # 启动嗅探器，只抓取443端口的TCP流量
-    # prn指定回调函数，store=0表示不将会话存储在内存中以节省资源
-    sniff(filter="tcp port 443", prn=packet_callback, store=0)
+    sniff(filter="tcp and (port 443 or port 4443)", prn=packet_callback, store=0)
 
 
 if __name__ == "__main__":
