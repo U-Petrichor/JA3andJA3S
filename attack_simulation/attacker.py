@@ -11,7 +11,7 @@ def main() -> None:
     # 禁用自签名证书产生的警告
     urllib3.disable_warnings()
 
-    url = "https://127.0.0.1:4443"
+    url = "https://10.122.216.44:4443"
     user_agent = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "

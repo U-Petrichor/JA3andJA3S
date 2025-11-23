@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    addr = ("0.0.0.0", 4443)
+    addr = ("10.122.216.44", 4443)
     pem_path = Path(__file__).parent / "server.pem"
 
     if not pem_path.exists():
