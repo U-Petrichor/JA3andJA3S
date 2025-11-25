@@ -6,14 +6,44 @@ os.environ["SCAPY_USE_PCAP"] = "True"
 import time 
 import sys # 引入sys用于强制刷新输出 
 from typing import Dict, Tuple 
- 
+
 from logger import LogManager 
 from tls_parser import extract_ja3, extract_ja3s 
 from utils import TrafficState, SessionInfo, get_five_tuple 
+try:
+    from colorama import init as colorama_init, Fore, Style
+    colorama_init(autoreset=True)
+    COLORAMA_AVAILABLE = True
+except Exception:
+    COLORAMA_AVAILABLE = False
+
+
+ANSI_ENABLED = False
+
+def _enable_ansi() -> bool:
+    try:
+        if os.name == "nt":
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            h = kernel32.GetStdHandle(-11)
+            mode = ctypes.c_uint()
+            if kernel32.GetConsoleMode(h, ctypes.byref(mode)):
+                return bool(kernel32.SetConsoleMode(h, mode.value | 0x0004))
+            return False
+        return True
+    except Exception:
+        return False
+
+def _red(s: str) -> str:
+    if COLORAMA_AVAILABLE:
+        return f"{Fore.RED}{s}{Style.RESET_ALL}"
+    return f"\033[31m{s}\033[0m" if ANSI_ENABLED else s
  
  
 def main(): 
     print("[*] 正在初始化系统组件...") # 1. 证明程序启动了 
+    global ANSI_ENABLED
+    ANSI_ENABLED = _enable_ansi()
     log_mgr = LogManager() 
     log_mgr.start() 
  
@@ -63,7 +93,7 @@ def main():
                         "ja3s": ja3s_hash, 
                         "state": info.state.value, 
                     }) 
-                    print(f"\n\033[31m[ALERT] 检测到 C2 通信! IP: {src_ip}\033[0m", flush=True) 
+                    print("\n" + _red(f"[ALERT] 检测到 C2 通信! IP: {src_ip}"), flush=True) 
             
             session_table.pop(rev, None) 
  
@@ -85,7 +115,8 @@ def main():
     print("[*] 开始抓包 (屏幕应该开始出现 '.' ) ...") 
  
    # 5. 启动抓包 (自动锁定 IP 为 10.122.216.44 的网卡，同时兼顾环回)
-    TARGET_IP = "10.122.216.44"
+    # TARGET_IP = "10.122.216.44"
+    TARGET_IP = "10.21.166.204"
     target_iface = None
     loop_iface = None
 
