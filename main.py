@@ -38,6 +38,26 @@ def _red(s: str) -> str:
     if COLORAMA_AVAILABLE:
         return f"{Fore.RED}{s}{Style.RESET_ALL}"
     return f"\033[31m{s}\033[0m" if ANSI_ENABLED else s
+
+def soar_simulate_response(ip: str, port: int, ja3s_hash: str) -> None:
+    title = "SOAR Response"
+    lines = [
+        f"Step 1: 上报威胁情报 | JA3S={ja3s_hash}",
+        f"Step 2: 生成防火墙策略 | netsh advfirewall firewall add rule name=\"Block_C2_{ip}\" dir=in action=block remoteip={ip}",
+        "Step 3: 执行状态 | ✅ 模拟成功 (Dry Run)",
+    ]
+    width = max(len(title), *(len(x) for x in lines))
+    top = f"╔{'═' * (width + 2)}╗"
+    bot = f"╚{'═' * (width + 2)}╝"
+    def wrap_row(s: str) -> str:
+        return f"║ {s.ljust(width)} ║"
+    color_on = Fore.CYAN if COLORAMA_AVAILABLE else ("\033[36m" if ANSI_ENABLED else "")
+    color_off = Style.RESET_ALL if COLORAMA_AVAILABLE else ("\033[0m" if ANSI_ENABLED else "")
+    print(color_on + top + color_off, flush=True)
+    print(color_on + wrap_row(title) + color_off, flush=True)
+    for ln in lines:
+        print(color_on + wrap_row(ln) + color_off, flush=True)
+    print(color_on + bot + color_off, flush=True)
  
  
 def main(): 
@@ -94,6 +114,7 @@ def main():
                         "state": info.state.value, 
                     }) 
                     print("\n" + _red(f"[ALERT] 检测到 C2 通信! IP: {src_ip}"), flush=True) 
+                    soar_simulate_response(src_ip, src_port, ja3s_hash)
             
             session_table.pop(rev, None) 
  
