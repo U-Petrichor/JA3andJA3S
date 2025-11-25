@@ -8,9 +8,9 @@
 @time: 2024-11-23 10:00
 @desc: 该模块提供了JA3/JA3S指纹分析所需的通用工具、数据结构和常量。
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 
 class TrafficState(Enum):
@@ -28,10 +28,13 @@ class SessionInfo:
     存储一个TLS会话的关键信息。
     使用 dataclass 装饰器可以自动生成 __init__, __repr__ 等方法。
     """
-    ja3_hash: Optional[str]  # 客户端的JA3指纹 (MD5哈希值)。
-    ja3s_hash: Optional[str]  # 服务器的JA3S指纹 (MD5哈希值)。
-    timestamp: float  # 会话创建或更新时的时间戳。
-    state: TrafficState  # 当前会话的安全状态。
+    ja3_hash: Optional[str]
+    ja3s_hash: Optional[str]
+    timestamp: float
+    state: TrafficState
+    payload_sizes: List[int] = field(default_factory=list)
+    arrival_times: List[float] = field(default_factory=list)
+    iat_list: List[float] = field(default_factory=list)
 
 
 # RFC 8701 中定义的GREASE (Generate Random Extensions And Sustain Extensibility) 值。
@@ -40,6 +43,8 @@ GREASE_VALUES = [
     0x0A0A, 0x1A1A, 0x2A2A, 0x3A3A, 0x4A4A, 0x5A5A, 0x6A6A, 0x7A7A,
     0x8A8A, 0x9A9A, 0xAAAA, 0xBABA, 0xCACA, 0xDADA, 0xEAEA, 0xFAFA,
 ]
+
+MAX_PACKET_TRACK = 20
 
 
 def get_five_tuple(packet) -> Tuple[str, int, str, int, str]:

@@ -23,6 +23,10 @@
   ```bash
   python attack_simulation/c2_server.py
   ```
+  启动虚拟环境
+  ```bash
+  .venv\Scripts\activate
+  ```
 - 以管理员权限运行检测程序：
   ```bash
   python main.py

@@ -9,7 +9,7 @@ from typing import Dict, Tuple
 
 from logger import LogManager 
 from tls_parser import extract_ja3, extract_ja3s 
-from utils import TrafficState, SessionInfo, get_five_tuple 
+from utils import TrafficState, SessionInfo, get_five_tuple, MAX_PACKET_TRACK 
 try:
     from colorama import init as colorama_init, Fore, Style
     colorama_init(autoreset=True)
@@ -38,6 +38,16 @@ def _red(s: str) -> str:
     if COLORAMA_AVAILABLE:
         return f"{Fore.RED}{s}{Style.RESET_ALL}"
     return f"\033[31m{s}\033[0m" if ANSI_ENABLED else s
+
+def _yellow(s: str) -> str:
+    if COLORAMA_AVAILABLE:
+        return f"{Fore.YELLOW}{s}{Style.RESET_ALL}"
+    return f"\033[33m{s}\033[0m" if ANSI_ENABLED else s
+
+def _cyan(s: str) -> str:
+    if COLORAMA_AVAILABLE:
+        return f"{Fore.CYAN}{s}{Style.RESET_ALL}"
+    return f"\033[36m{s}\033[0m" if ANSI_ENABLED else s
 
 def soar_simulate_response(ip: str, port: int, ja3s_hash: str) -> None:
     title = "SOAR Response"
@@ -116,7 +126,35 @@ def main():
                     print("\n" + _red(f"[ALERT] 检测到 C2 通信! IP: {src_ip}"), flush=True) 
                     soar_simulate_response(src_ip, src_port, ja3s_hash)
             
-            session_table.pop(rev, None) 
+            
+
+        if packet.haslayer(TCP):
+            pl = bytes(packet[TCP].payload)
+            payload_len = len(pl)
+            if payload_len > 0:
+                ft2 = get_five_tuple(packet)
+                if ft2:
+                    s_ip, s_port, d_ip, d_port, pr = ft2
+                    rev2 = (d_ip, d_port, s_ip, s_port, pr)
+                    sess = session_table.get(ft2) or session_table.get(rev2)
+                    if sess:
+                        if len(sess.payload_sizes) < MAX_PACKET_TRACK:
+                            now = time.time()
+                            sess.payload_sizes.append(payload_len)
+                            sess.arrival_times.append(now)
+                            if len(sess.arrival_times) >= 2:
+                                dt = sess.arrival_times[-1] - sess.arrival_times[-2]
+                                sess.iat_list.append(dt)
+                            latest_iat = sess.iat_list[-1] if sess.iat_list else 0.0
+                            seq = len(sess.payload_sizes)
+                            print(_cyan(f"[Flow Analysis] IP: {s_ip} -> {d_ip} | 包序列: {seq}/{MAX_PACKET_TRACK} | 最新IAT: {latest_iat:.2f}s | 载荷: {payload_len} bytes"), flush=True)
+                            if len(sess.iat_list) >= 5 and len(sess.payload_sizes) >= 5:
+                                window_iat = sess.iat_list[-5:]
+                                window_payload = sess.payload_sizes[-5:]
+                                heartbeat = all(abs(x - 1.0) <= 0.1 for x in window_iat)
+                                fixed = len(set(window_payload)) == 1
+                                if heartbeat and fixed:
+                                    print(_yellow("[BEHAVIOR WARNING] 检测到各种机器心跳特征！"), flush=True)
  
     # 3. 加载 Scapy 的时候告诉用户别慌 
     print("[*] 正在加载 Scapy 网络驱动 (Windows上可能需要10-20秒，请耐心等待)...") 
